@@ -1,0 +1,72 @@
+# Personal AI Control Plane: Project Portfolio Registry
+#
+# This file is the source of truth for all projects in your portfolio.
+# Anything not in this file does not get scored, dispatched, or surfaced
+# in the morning report. Visibility is governance.
+#
+# Quickstart: replace the example projects below with your own. Each project
+# needs a `repo`, `tier`, and `status`. Everything else is optional.
+#
+# Tiers:
+#   1 = Revenue & Strategic       (scored at 2.0x)
+#   2 = Product & Growth          (scored at 1.5x)
+#   3 = Infrastructure & Ops      (scored at 1.0x)
+#   4 = Community & Education     (scored at 0.5x)
+#
+# Statuses:
+#   active      - scored at full weight, dispatched per policy
+#   maintenance - scored at 0.5x, lower-priority dispatch
+#   paused      - not scored, not dispatched
+#   archived    - not scored, not dispatched, not in morning report
+
+projects:
+  # === Tier 1: Revenue & Strategic ===
+  - repo: my-product
+    role: "Main Product"
+    division: revenue
+    tier: 1
+    status: active
+    description: "The thing that pays the bills. Replace with your own."
+    tech_stack: [typescript, react, postgres]
+    depends_on: []
+    open_issues: 0          # filled in by score-issues.sh
+    last_activity: "auto"   # filled in by score-issues.sh
+
+  # === Tier 2: Product & Growth ===
+  - repo: my-side-bet
+    role: "Side Bet"
+    division: incubation
+    tier: 2
+    status: maintenance
+    description: "Promising but not core. Replace with your own."
+    tech_stack: [python, fastapi]
+    depends_on: []
+    open_issues: 0
+    last_activity: "auto"
+
+  # === Tier 3: Infrastructure & Operations ===
+  - repo: my-infra
+    role: "Local Infrastructure"
+    division: platform
+    tier: 3
+    status: active
+    description: "Shared dev infrastructure. Replace with your own."
+    tech_stack: [docker, bash]
+    depends_on: []
+    open_issues: 0
+    last_activity: "auto"
+
+# === Schema reference ===
+#
+# Each project supports the following keys (all optional except repo, tier, status):
+#
+#   repo          - GitHub repo name (without owner). Required.
+#   role          - Human-readable role title shown in morning reports.
+#   division      - Logical grouping (revenue, finance, platform, incubation, community).
+#   tier          - 1 | 2 | 3 | 4 (see scoring multipliers above).
+#   status        - active | maintenance | paused | archived.
+#   description   - One-line description for the dashboard.
+#   tech_stack    - List of technologies. Used for context, not scoring.
+#   depends_on    - List of repo names this project depends on.
+#   open_issues   - Auto-filled by scoring run.
+#   last_activity - Auto-filled by scoring run.

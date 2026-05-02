@@ -1,0 +1,164 @@
+# Head of AI: Orchestration Policy (template)
+# This file is the kata. It encodes your opinion about what good means
+# for your portfolio. Changes should go through PR review (git-tracked,
+# never auto-applied). Treat it like a Toyota Production System manual:
+# written, reviewable, and the source of truth when behavior surprises you.
+
+scoring:
+  # DICE Framework: Score = (D × I × C) / E
+  # Higher score = do it first
+  weights:
+    delegability: 1.0    # Has spec? Acceptance criteria? Test strategy?
+    impact: 1.0          # Revenue potential + strategic value + contextual urgency
+    confidence: 1.0      # Dependencies clear? Similar work succeeded? Tech risk low?
+    effort_divisor: true # Effort divides the product (not multiplied)
+
+  # Activity decay (multiplier on Impact score)
+  activity_decay:
+    within_7_days: 1.0
+    within_30_days: 0.7
+    within_90_days: 0.4
+    over_90_days: 0.1
+
+  # Tier multipliers on final score
+  tier_multipliers:
+    1: 2.0   # Revenue & Strategic
+    2: 1.5   # Product & Growth
+    3: 1.0   # Infrastructure & Operations
+    4: 0.5   # Community & Education
+
+  # Status multipliers on final score
+  status_multipliers:
+    active: 1.0
+    maintenance: 0.5
+    paused: 0.0      # Not scored
+    archived: 0.0    # Not scored
+
+  # Effort estimates (issue label → divisor)
+  effort_map:
+    S: 1    # Small: <1 hour agent work
+    M: 3    # Medium: 1-4 hours
+    L: 5    # Large: 4-8 hours
+    XL: 8   # Extra large: 8+ hours
+    default: 3  # When no estimate available
+
+dispatch:
+  # Score thresholds for dispatch buckets
+  buckets:
+    auto_dispatch:
+      min_score: 70
+      min_delegability: 7
+      description: "Queue for night-shift, no approval needed"
+    dispatch_with_review:
+      min_score: 40
+      min_delegability: 5
+      veto_window_hours: 2
+      description: "Queue, notify owner, dispatch unless vetoed in window"
+    needs_planning:
+      min_score: 20
+      max_delegability: 5
+      description: "Needs spec or scope refinement first"
+    park:
+      max_score: 20
+      description: "Deprioritized, revisit next cycle"
+
+  # Auto-deprioritize issues with insufficient structure
+  quality_gates:
+    no_acceptance_criteria: -5  # Penalty to delegability score
+    no_body: -8                 # Title-only issues are nearly un-delegable
+    no_test_strategy: -2        # Minor penalty
+
+  # Concurrent agent limits
+  limits:
+    max_concurrent_agents: 5
+    max_agents_per_repo: 1       # Sequential within repo, parallel across repos
+    max_agents_per_dispatch: 5   # Per nightly batch
+
+  # Model assignment by complexity
+  model_assignment:
+    simple: haiku      # Docs, deps, formatting, simple fixes
+    standard: sonnet   # Feature work, tests, standard implementation (default)
+    complex: opus      # Architecture, complex debugging, multi-file refactors
+
+  # Scope assignment by issue type
+  scope_defaults:
+    docs_only: ["documentation", "docs", "readme"]       # Labels that get docs-only scope
+    source: ["feature", "enhancement", "bug", "refactor"] # Labels that get source scope
+    full: ["architecture", "infra", "security"]           # Labels that get full scope
+
+autonomy:
+  # Tiered autonomy levels
+  tiers:
+    full_auto:
+      description: "Auto-review + auto-merge, no human needed"
+      criteria:
+        - "docs-only PRs"
+        - "test additions"
+        - "dependency bumps"
+        - "well-spec'd issues with passing tests + clean auto-review"
+        - "Tier 3-4 projects"
+    auto_review_hold:
+      description: "Auto-reviewed but held for owner merge decision"
+      criteria:
+        - "Tier 1-2 core logic changes"
+        - "Multi-file refactors"
+        - "New features"
+    manual_review:
+      description: "Owner must review before merge"
+      criteria:
+        - "Infrastructure files (docker-compose, plists, port configs, CLAUDE.md)"
+        - "Security-sensitive (auth, credentials, permissions)"
+        - ">10 files or >300 lines"
+        - "Cross-project dependency changes"
+    owner_only:
+      description: "Never automated"
+      criteria:
+        - "Architecture decisions"
+        - "New project creation"
+        - "Tier reassignment"
+        - "Budget/spend decisions"
+
+  # Heavy PR definition (triggers manual review)
+  heavy_pr:
+    max_files: 10
+    max_lines: 300
+    infra_patterns:
+      - "docker-compose*.yml"
+      - "*.plist"
+      - "CLAUDE.md"
+      - "ports.json"
+      - ".env*"
+    tier1_always_manual: true
+
+cost:
+  # Monthly budget ceiling
+  budget_monthly_usd: 500
+  alert_thresholds:
+    warning: 0.80   # 80% → reduce dispatch batch size
+    critical: 0.95  # 95% → pause auto-dispatch, notify owner
+
+schedule:
+  # LaunchAgent schedules (all times local)
+  dispatch: "22:00"         # 10 PM daily
+  morning_report: "08:00"   # 8 AM daily
+  cleanup: "every_6h"       # Orphaned worktree recovery
+  intelligence: "08:00"     # 8 AM daily (proactive alerts)
+  improver: "saturday_09:00" # Weekly meta-agent
+
+  # Proactive intelligence thresholds
+  intelligence_rules:
+    stale_issue_days: 14       # Flag issues untouched > N days
+    scope_creep_weeks: 2       # Alert if growing issues with no closures
+    cost_anomaly_multiplier: 2 # Alert if spend > Nx rolling average
+    blocked_escalation_days: 7 # Escalate blocked issues after N days
+    spec_stale_days: 30        # Flag specs without corresponding issues
+
+vacation_mode:
+  auto_expire_days: 14
+  allowed_during_vacation:
+    - "full_auto tier only"
+    - "docs, tests, dependency bumps"
+  blocked_during_vacation:
+    - "new issue creation"
+    - "auto-merge above full_auto tier"
+    - "tier reassignment"

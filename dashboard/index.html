@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Head of AI — Control Plane</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0d1117;
+      --surface:     #161b22;
+      --border:      #30363d;
+      --text:        #e6edf3;
+      --muted:       #7d8590;
+      --green:       #238636;
+      --green-text:  #3fb950;
+      --yellow:      #d29922;
+      --yellow-text: #e3b341;
+      --red:         #da3633;
+      --red-text:    #f85149;
+      --gray:        #484f58;
+      --gray-text:   #8b949e;
+      --t1:          #ff7b72;
+      --t2:          #ffa657;
+      --t3:          #79c0ff;
+      --t4:          #7d8590;
+      --radius:      6px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+
+    /* Header */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .header-title h1 { font-size: 18px; font-weight: 600; }
+    .header-title p  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .refresh-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .refresh-btn:hover { background: #21262d; border-color: #8b949e; }
+    .spin { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Sections */
+    .section { padding: 24px 0; border-bottom: 1px solid var(--border); }
+    .section:last-child { border-bottom: none; }
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .section-title-extra { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); font-size: 11px; }
+
+    /* Error / empty states */
+    .error-banner {
+      background: #1f1118;
+      border: 1px solid #6e2424;
+      color: var(--red-text);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      display: none;
+      font-size: 13px;
+    }
+    .empty-state {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .empty-state strong { display: block; font-size: 15px; margin-bottom: 6px; color: var(--text); }
+    .empty-state code {
+      background: #21262d;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: "SF Mono","Fira Code",monospace;
+      font-size: 12px;
+      color: var(--green-text);
+    }
+
+    /* Bucket cards */
+    .buckets {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .bucket-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .bucket-card:hover { background: #21262d; }
+    .bucket-card.active { border-color: var(--bc); background: color-mix(in srgb, var(--bc) 10%, var(--surface)); }
+    .bucket-card[data-bucket="auto_dispatch"]        { --bc: var(--green); }
+    .bucket-card[data-bucket="dispatch_with_review"] { --bc: var(--yellow); }
+    .bucket-card[data-bucket="needs_planning"]       { --bc: var(--red); }
+    .bucket-card[data-bucket="park"]                 { --bc: var(--gray); }
+    .bucket-count { font-size: 36px; font-weight: 700; line-height: 1; margin-bottom: 4px; color: var(--bc); }
+    .bucket-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+    /* Badges */
+    .badge {
+      display: inline-flex; align-items: center;
+      font-size: 11px; font-weight: 600;
+      padding: 2px 6px; border-radius: 3px; white-space: nowrap;
+    }
+    .badge-t1 { background: color-mix(in srgb,var(--t1) 15%,transparent); color: var(--t1); }
+    .badge-t2 { background: color-mix(in srgb,var(--t2) 15%,transparent); color: var(--t2); }
+    .badge-t3 { background: color-mix(in srgb,var(--t3) 15%,transparent); color: var(--t3); }
+    .badge-t4 { background: color-mix(in srgb,var(--t4) 20%,transparent); color: var(--t4); }
+    .badge-active      { background: color-mix(in srgb,var(--green) 15%,transparent); color: var(--green-text); }
+    .badge-maintenance { background: color-mix(in srgb,var(--yellow) 15%,transparent); color: var(--yellow-text); }
+    .badge-paused      { background: color-mix(in srgb,var(--gray) 15%,transparent); color: var(--gray-text); }
+
+    .pill {
+      display: inline-flex; align-items: center;
+      font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 20px; white-space: nowrap;
+    }
+    .pill-auto   { background: color-mix(in srgb,var(--green) 20%,transparent); color: var(--green-text); }
+    .pill-review { background: color-mix(in srgb,var(--yellow) 20%,transparent); color: var(--yellow-text); }
+    .pill-plan   { background: color-mix(in srgb,var(--red) 20%,transparent); color: var(--red-text); }
+    .pill-park   { background: color-mix(in srgb,var(--gray) 20%,transparent); color: var(--gray-text); }
+
+    .dice-chips { display: flex; gap: 3px; flex-wrap: nowrap; }
+    .dc {
+      display: inline-flex; align-items: center;
+      font-size: 10px;
+      font-family: "SF Mono","Fira Code",monospace;
+      background: #21262d; border: 1px solid var(--border);
+      border-radius: 3px; padding: 1px 4px; color: var(--muted);
+    }
+    .dc b { color: var(--text); font-weight: 600; margin-right: 1px; }
+
+    /* Portfolio table */
+    .ptable { width: 100%; border-collapse: collapse; }
+    .ptable th {
+      text-align: left; padding: 7px 10px;
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .ptable th:first-child { padding-left: 0; }
+
+    .prow {
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background 0.1s;
+    }
+    .prow:hover td { background: #1c2128; }
+    .prow.is-open td { background: #21262d; border-bottom: none; }
+    .prow td { padding: 10px 10px; vertical-align: middle; font-size: 13px; }
+    .prow td:first-child { padding-left: 0; }
+
+    .pname { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+    .chevron {
+      width: 12px; height: 12px; flex-shrink: 0; color: var(--muted);
+      transition: transform 0.2s;
+    }
+    .is-open .chevron { transform: rotate(90deg); }
+
+    .score-bar { display: flex; align-items: center; gap: 6px; }
+    .score-val { font-weight: 600; font-size: 13px; min-width: 30px; text-align: right; }
+    .score-track {
+      flex: 1; height: 4px; background: var(--border);
+      border-radius: 2px; min-width: 36px; max-width: 70px; overflow: hidden;
+    }
+    .score-fill { height: 100%; border-radius: 2px; background: var(--green-text); transition: width 0.4s; }
+
+    .dots { display: flex; gap: 2px; }
+    .dot { width: 8px; height: 8px; border-radius: 2px; background: var(--border); }
+    .dot.lit { background: var(--green-text); }
+
+    /* Expanded issues */
+    .irow { display: none; }
+    .irow.is-open { display: table-row; }
+    .icell {
+      padding: 0 0 12px 0 !important;
+      background: #0d1117 !important;
+      border-bottom: 1px solid var(--border) !important;
+    }
+    .itable { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .itable th {
+      text-align: left; padding: 6px 10px;
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .itable td { padding: 7px 10px; vertical-align: middle; border-bottom: 1px solid #1c2128; font-size: 12px; }
+    .itable tr:last-child td { border-bottom: none; }
+    .ilink {
+      color: var(--t3); text-decoration: none;
+      font-family: "SF Mono","Fira Code",monospace; font-size: 11px; white-space: nowrap;
+    }
+    .ilink:hover { text-decoration: underline; }
+    .ititle { color: var(--text); }
+    .ireason { color: var(--muted); font-size: 11px; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fscore { font-weight: 700; font-size: 14px; }
+
+    /* Queue */
+    .qtable { width: 100%; border-collapse: collapse; }
+    .qtable th {
+      text-align: left; padding: 7px 10px;
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .qtable th:first-child { width: 32px; text-align: center; }
+    .qtable td { padding: 8px 10px; vertical-align: middle; border-bottom: 1px solid #1c2128; font-size: 13px; }
+    .qtable tr:last-child td { border-bottom: none; }
+    .qtable tr { transition: background 0.1s; }
+    .qtable tr:hover td { background: #161b22; }
+    .qrank { text-align: center; color: var(--muted); font-size: 12px; font-weight: 600; }
+    .qscore { font-weight: 700; font-size: 15px; }
+    .qref a { color: var(--t3); text-decoration: none; font-family: "SF Mono","Fira Code",monospace; font-size: 12px; }
+    .qref a:hover { text-decoration: underline; }
+    .filter-hidden { display: none; }
+
+    /* Alerts */
+    .alerts-list { display: flex; flex-direction: column; gap: 8px; }
+    .alert-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 3px solid var(--yellow);
+      border-radius: var(--radius); padding: 10px 14px;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .alert-stale { border-left-color: var(--yellow); }
+    .alert-spec  { border-left-color: var(--red); }
+    .alert-backlog { border-left-color: var(--t3); }
+    .alert-icon { flex-shrink: 0; font-size: 14px; margin-top: 1px; }
+    .alert-body strong { font-size: 13px; color: var(--text); }
+    .alert-body p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    @media (max-width: 900px) { .hide-md { display: none !important; } }
+    @media (max-width: 600px) {
+      .hide-sm { display: none !important; }
+      .buckets { grid-template-columns: repeat(2,1fr); }
+      .header-title h1 { font-size: 15px; }
+    }
+    @media (max-width: 360px) { .buckets { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <div class="header-title">
+        <h1>Head of AI &mdash; Control Plane</h1>
+        <p id="last-scored">Loading&hellip;</p>
+      </div>
+      <div>
+        <button class="refresh-btn" id="refresh-btn" onclick="triggerRefresh()">
+          <svg id="refresh-svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.001 7.001 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.501 5.501 0 0 0 8 2.5ZM1.705 8.005a.75.75 0 0 1 .834.656A5.501 5.501 0 0 0 13.5 8h-1.5a.25.25 0 0 1-.177-.427l2.146-2.146a.25.25 0 0 1 .354 0l2.146 2.146a.25.25 0 0 1-.177.427H14.5a7.001 7.001 0 0 1-6.947 6.916.75.75 0 0 1 0-1.5 5.501 5.501 0 0 0 5.447-6.256.75.75 0 0 1 .656-.834Z"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div id="error-banner" class="error-banner"></div>
+
+  <section class="section">
+    <div class="section-title">Dispatch Buckets</div>
+    <div class="buckets">
+      <div class="bucket-card" data-bucket="auto_dispatch" onclick="toggleFilter('auto_dispatch')">
+        <div class="bucket-count" id="cnt-auto">&#8212;</div>
+        <div class="bucket-label">Auto Dispatch</div>
+      </div>
+      <div class="bucket-card" data-bucket="dispatch_with_review" onclick="toggleFilter('dispatch_with_review')">
+        <div class="bucket-count" id="cnt-review">&#8212;</div>
+        <div class="bucket-label">Review</div>
+      </div>
+      <div class="bucket-card" data-bucket="needs_planning" onclick="toggleFilter('needs_planning')">
+        <div class="bucket-count" id="cnt-plan">&#8212;</div>
+        <div class="bucket-label">Needs Planning</div>
+      </div>
+      <div class="bucket-card" data-bucket="park" onclick="toggleFilter('park')">
+        <div class="bucket-count" id="cnt-park">&#8212;</div>
+        <div class="bucket-label">Park</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-title">Portfolio Overview</div>
+    <div id="portfolio-wrap"><div class="empty-state"><strong>Loading&hellip;</strong></div></div>
+  </section>
+
+  <section class="section">
+    <div class="section-title">
+      Dispatch Queue
+      <span id="filter-label" class="section-title-extra"></span>
+    </div>
+    <div id="queue-wrap"><div class="empty-state"><strong>Loading&hellip;</strong></div></div>
+  </section>
+
+  <section class="section">
+    <div class="section-title">Alerts</div>
+    <div id="alerts-wrap"><div class="empty-state"><strong>Loading&hellip;</strong></div></div>
+  </section>
+</main>
+
+<script>
+var _data = null;
+var _filter = null;
+var _expanded = {};
+var _timer = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  fetchScores();
+  _timer = setInterval(fetchScores, 60000);
+});
+
+function triggerRefresh() {
+  var svg = document.getElementById('refresh-svg');
+  svg.classList.add('spin');
+  fetchScores().then(function() {
+    svg.classList.remove('spin');
+  }).catch(function() {
+    svg.classList.remove('spin');
+  });
+}
+
+function fetchScores() {
+  hideError();
+  return fetch('/api/scores')
+    .then(function(res) {
+      if (!res.ok) { throw new Error('HTTP ' + res.status); }
+      return res.json();
+    })
+    .then(function(data) {
+      _data = data;
+      renderDashboard(data);
+    })
+    .catch(function(err) {
+      if (!_data) { renderEmpty(); }
+      showError('Scoring data unavailable: ' + err.message);
+    });
+}
+
+function showError(msg) {
+  var el = document.getElementById('error-banner');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideError() {
+  document.getElementById('error-banner').style.display = 'none';
+}
+
+function renderEmpty() {
+  document.getElementById('last-scored').textContent = 'No data';
+  ['auto','review','plan','park'].forEach(function(k) {
+    document.getElementById('cnt-' + k).textContent = '0';
+  });
+  document.getElementById('portfolio-wrap').innerHTML =
+    '<div class="empty-state"><strong>No scoring data yet.</strong> Run <code>/weekly-planning</code> to get started.</div>';
+  document.getElementById('queue-wrap').innerHTML =
+    '<div class="empty-state"><strong>Queue is empty.</strong> Run <code>/weekly-planning</code> to populate.</div>';
+  document.getElementById('alerts-wrap').innerHTML =
+    '<div class="empty-state"><strong>No alerts.</strong></div>';
+}
+
+function renderDashboard(data) {
+  updateLastScored(data.scored_at);
+  renderBuckets(data);
+  renderPortfolio(data);
+  renderQueue(data);
+  renderAlerts(data);
+}
+
+function updateLastScored(scoredAt) {
+  var el = document.getElementById('last-scored');
+  if (!scoredAt) { el.textContent = 'Never scored'; return; }
+  el.textContent = 'Last scored: ' + relTime(new Date(scoredAt));
+}
+
+function relTime(d) {
+  var diff = Date.now() - d.getTime();
+  var m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + 'm ago';
+  var h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  return Math.floor(h / 24) + 'd ago';
+}
+
+function renderBuckets(data) {
+  var s = (data.summary || {});
+  document.getElementById('cnt-auto').textContent   = s.auto_dispatch || 0;
+  document.getElementById('cnt-review').textContent = s.dispatch_with_review || 0;
+  document.getElementById('cnt-plan').textContent   = s.needs_planning || 0;
+  document.getElementById('cnt-park').textContent   = s.park || 0;
+}
+
+/* ── Portfolio ── */
+function renderPortfolio(data) {
+  var projects = (data.projects || []).slice();
+  projects.sort(function(a, b) {
+    var ta = a.tier || 99, tb = b.tier || 99;
+    if (ta !== tb) return ta - tb;
+    return (b.avg_score || 0) - (a.avg_score || 0);
+  });
+
+  if (!projects.length) {
+    document.getElementById('portfolio-wrap').innerHTML =
+      '<div class="empty-state"><strong>No projects.</strong></div>';
+    return;
+  }
+
+  var rows = '';
+  projects.forEach(function(p) {
+    var repo = p.repo || '';
+    var isOpen = !!_expanded[repo];
+    var scoreW = Math.min(100, p.avg_score || 0);
+    var scoreV = p.avg_score != null ? Math.round(p.avg_score) : '—';
+
+    rows += '<tr class="prow' + (isOpen ? ' is-open' : '') + '" data-repo="' + x(repo) + '" onclick="toggleRow(this)">'
+      + '<td><div class="pname">'
+      + '<svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>'
+      + x(p.role || repo)
+      + '</div></td>'
+      + '<td>' + tierBadge(p.tier) + '</td>'
+      + '<td>' + statusBadge(p.status) + '</td>'
+      + '<td class="hide-sm">' + (p.open_issues != null ? p.open_issues : '—') + '</td>'
+      + '<td><div class="score-bar"><span class="score-val">' + scoreV + '</span>'
+      + '<div class="score-track"><div class="score-fill" style="width:' + scoreW + '%"></div></div></div></td>'
+      + '<td class="hide-md">' + dotsHtml(p.commits_7d || 0) + '</td>'
+      + '</tr>'
+      + '<tr class="irow' + (isOpen ? ' is-open' : '') + '" id="irow-' + x(repo) + '">'
+      + '<td class="icell" colspan="6">' + issuesTable(p) + '</td>'
+      + '</tr>';
+  });
+
+  document.getElementById('portfolio-wrap').innerHTML =
+    '<table class="ptable">'
+    + '<thead><tr>'
+    + '<th>Project</th><th>Tier</th><th>Status</th>'
+    + '<th class="hide-sm">Issues</th><th>Avg Score</th>'
+    + '<th class="hide-md">Activity (7d)</th>'
+    + '</tr></thead>'
+    + '<tbody>' + rows + '</tbody>'
+    + '</table>';
+}
+
+function issuesTable(p) {
+  var issues = p.issues || [];
+  if (!issues.length) {
+    return '<div style="padding:10px 10px; color:var(--muted); font-size:12px;">No scored issues for this project.</div>';
+  }
+  var ghBase = p.repo ? 'https://github.com/' + p.repo + '/issues/' : null;
+  var rows = '';
+  issues.forEach(function(iss) {
+    var url = ghBase ? ghBase + iss.number : '#';
+    var title = (iss.title || '').substring(0, 80) + ((iss.title || '').length > 80 ? '\u2026' : '');
+    rows += '<tr>'
+      + '<td><a href="' + x(url) + '" target="_blank" rel="noopener" class="ilink">#' + iss.number + '</a></td>'
+      + '<td class="ititle">' + x(title) + '</td>'
+      + '<td>' + diceHtml(iss) + '</td>'
+      + '<td><span class="fscore">' + Math.round(iss.final_score || 0) + '</span></td>'
+      + '<td>' + bucketPill(iss.bucket) + '</td>'
+      + '<td class="hide-md ireason" title="' + x(iss.reasoning || '') + '">' + x(iss.reasoning || '') + '</td>'
+      + '</tr>';
+  });
+  return '<table class="itable">'
+    + '<thead><tr><th>#</th><th>Title</th><th>DICE</th><th>Score</th><th>Bucket</th><th class="hide-md">Reasoning</th></tr></thead>'
+    + '<tbody>' + rows + '</tbody>'
+    + '</table>';
+}
+
+/* ── Queue ── */
+function renderQueue(data) {
+  var queue = (data.dispatch_queue || []).slice(0, 30);
+  if (!queue.length) {
+    document.getElementById('queue-wrap').innerHTML =
+      '<div class="empty-state"><strong>Queue is empty.</strong> Run <code>/weekly-planning</code> to populate.</div>';
+    return;
+  }
+
+  var rows = '';
+  queue.forEach(function(iss, idx) {
+    var repoShort = (iss.repo || '').split('/').pop();
+    var ghUrl = iss.repo ? 'https://github.com/' + iss.repo + '/issues/' + iss.number : '#';
+    var title = (iss.title || '').substring(0, 80) + ((iss.title || '').length > 80 ? '\u2026' : '');
+    var hidden = _filter && iss.bucket !== _filter ? ' filter-hidden' : '';
+    rows += '<tr data-bucket="' + x(iss.bucket) + '" class="' + hidden + '">'
+      + '<td class="qrank">' + (idx + 1) + '</td>'
+      + '<td class="qscore">' + Math.round(iss.final_score || 0) + '</td>'
+      + '<td class="qref"><a href="' + x(ghUrl) + '" target="_blank" rel="noopener">' + x(repoShort) + '#' + iss.number + '</a></td>'
+      + '<td>' + x(title) + '</td>'
+      + '<td>' + bucketPill(iss.bucket) + '</td>'
+      + '</tr>';
+  });
+
+  document.getElementById('queue-wrap').innerHTML =
+    '<table class="qtable">'
+    + '<thead><tr><th>#</th><th>Score</th><th>Ref</th><th>Title</th><th>Bucket</th></tr></thead>'
+    + '<tbody>' + rows + '</tbody>'
+    + '</table>';
+}
+
+/* ── Alerts ── */
+function renderAlerts(data) {
+  var alerts = [];
+
+  (data.projects || []).forEach(function(p) {
+    // Stale project alert — activity_decay is a project-level field
+    if ((p.activity_decay || 1) < 0.4) {
+      alerts.push({
+        cls: 'alert-stale', icon: '!',
+        title: 'Stale: ' + (p.role || p.repo),
+        body: (p.open_issues || 0) + ' open issues with activity decay ' + ((p.activity_decay || 0).toFixed(2)) + ' — no recent commits.'
+      });
+    }
+    (p.issues || []).forEach(function(iss) {
+      if ((iss.impact || 0) > 7 && (iss.delegability || 10) < 5) {
+        alerts.push({
+          cls: 'alert-spec', icon: '~',
+          title: 'High value, unclear spec: ' + (p.repo || '') + ' #' + iss.number,
+          body: 'Impact ' + iss.impact + '/10 but delegability ' + iss.delegability + '/10 — add acceptance criteria.'
+        });
+      }
+    });
+    if (p.status === 'paused' && (p.open_issues || 0) > 5) {
+      alerts.push({
+        cls: 'alert-backlog', icon: '^',
+        title: 'Backlog accumulating: ' + (p.role || p.repo),
+        body: (p.open_issues) + ' open issues on a paused project. Re-activate or close stale issues.'
+      });
+    }
+  });
+
+  if (!alerts.length) {
+    document.getElementById('alerts-wrap').innerHTML =
+      '<div class="empty-state"><strong>No alerts.</strong> System looks healthy.</div>';
+    return;
+  }
+
+  var html = '<div class="alerts-list">';
+  alerts.slice(0, 20).forEach(function(a) {
+    html += '<div class="alert-item ' + a.cls + '">'
+      + '<span class="alert-icon">' + x(a.icon) + '</span>'
+      + '<div class="alert-body"><strong>' + x(a.title) + '</strong><p>' + x(a.body) + '</p></div>'
+      + '</div>';
+  });
+  html += '</div>';
+  document.getElementById('alerts-wrap').innerHTML = html;
+}
+
+/* ── Interactions ── */
+function toggleRow(row) {
+  var repo = row.dataset.repo;
+  var irow = document.getElementById('irow-' + repo);
+  if (!irow) return;
+  var open = irow.classList.contains('is-open');
+  if (open) {
+    delete _expanded[repo];
+    irow.classList.remove('is-open');
+    row.classList.remove('is-open');
+  } else {
+    _expanded[repo] = true;
+    irow.classList.add('is-open');
+    row.classList.add('is-open');
+  }
+}
+
+function toggleFilter(bucket) {
+  var all = document.querySelectorAll('.bucket-card');
+  var card = document.querySelector('.bucket-card[data-bucket="' + bucket + '"]');
+  if (_filter === bucket) {
+    _filter = null;
+    all.forEach(function(c) { c.classList.remove('active'); });
+    document.getElementById('filter-label').textContent = '';
+  } else {
+    _filter = bucket;
+    all.forEach(function(c) { c.classList.remove('active'); });
+    if (card) { card.classList.add('active'); }
+    document.getElementById('filter-label').textContent = '— ' + bucketLabel(bucket);
+  }
+  document.querySelectorAll('.qtable tbody tr').forEach(function(tr) {
+    if (!_filter || tr.dataset.bucket === _filter) {
+      tr.classList.remove('filter-hidden');
+    } else {
+      tr.classList.add('filter-hidden');
+    }
+  });
+}
+
+/* ── Helpers ── */
+function tierBadge(t) {
+  if (!t) return '';
+  return '<span class="badge badge-t' + t + '">T' + t + '</span>';
+}
+function statusBadge(s) {
+  var map = { active: 'badge-active', maintenance: 'badge-maintenance', paused: 'badge-paused' };
+  return '<span class="badge ' + (map[s] || 'badge-paused') + '">' + x(s || 'unknown') + '</span>';
+}
+function bucketPill(b) {
+  var map = {
+    auto_dispatch: ['pill-auto','Auto'],
+    dispatch_with_review: ['pill-review','Review'],
+    needs_planning: ['pill-plan','Plan'],
+    park: ['pill-park','Park']
+  };
+  var p = map[b] || ['pill-park', b || '?'];
+  return '<span class="pill ' + p[0] + '">' + p[1] + '</span>';
+}
+function bucketLabel(b) {
+  return { auto_dispatch:'Auto Dispatch', dispatch_with_review:'Review', needs_planning:'Needs Planning', park:'Park' }[b] || b;
+}
+function diceHtml(iss) {
+  var d = iss.delegability != null ? iss.delegability : '?';
+  var i = iss.impact       != null ? iss.impact       : '?';
+  var c = iss.confidence   != null ? iss.confidence   : '?';
+  var e = iss.effort       != null ? iss.effort       : '?';
+  return '<div class="dice-chips">'
+    + '<span class="dc"><b>D</b>' + d + '</span>'
+    + '<span class="dc"><b>I</b>' + i + '</span>'
+    + '<span class="dc"><b>C</b>' + c + '</span>'
+    + '<span class="dc"><b>E</b>' + e + '</span>'
+    + '</div>';
+}
+function dotsHtml(commits) {
+  var n = 7, lit = Math.min(n, Math.round((commits / 10) * n));
+  var h = '<div class="dots">';
+  for (var i = 0; i < n; i++) { h += '<div class="dot' + (i < lit ? ' lit' : '') + '"></div>'; }
+  return h + '</div>';
+}
+function x(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>

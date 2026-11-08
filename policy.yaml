@@ -108,7 +108,7 @@ autonomy:
       criteria:
         - "Infrastructure files (docker-compose, plists, port configs, CLAUDE.md)"
         - "Security-sensitive (auth, credentials, permissions)"
-        - ">10 files or >300 lines"
+        - "Broad blast radius or tightly coupled migration/recovery risk"
         - "Cross-project dependency changes"
     owner_only:
       description: "Never automated"
@@ -118,10 +118,8 @@ autonomy:
         - "Tier reassignment"
         - "Budget/spend decisions"
 
-  # Heavy PR definition (triggers manual review)
+  # Risk-based review criteria; coherent PRs have no arbitrary file/line cap.
   heavy_pr:
-    max_files: 10
-    max_lines: 300
     infra_patterns:
       - "docker-compose*.yml"
       - "*.plist"
